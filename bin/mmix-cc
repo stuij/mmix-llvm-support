@@ -1,0 +1,5 @@
+#!/bin/env bash
+
+clang ${1} --target=mmix -c
+clang ${2} --target=mmix -o test.elf -O0
+mmix-objcopy -O mmo test.elf test.mmo
