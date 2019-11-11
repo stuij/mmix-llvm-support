@@ -1,0 +1,390 @@
+* todo
+** TODO rebase and fix on newest branch
+** TODO assembly support for instrs
+*** overgeslagen:
+x,y,z
+v trap
+v swym
+v trip
+
+v resume
+v save
+v unsave
+v sync
+
+$x,$y,$z
+v fcmp
+v fun
+v feql
+v fadd
+v fsub
+v fmul
+v fcmpe
+v fune
+v feqle
+v fdiv
+v frem
+
+$x,$z
+v fix
+v fixu
+v fsqrt
+v fint
+
+v flot
+v flotu
+v sflot
+v sflotu
+
+alu3multi
+v mul
+v mulu
+v div
+v divu
+v sl
+v slu
+v sr
+v sru
+v bdif
+v wdif
+v tdif
+v odif
+v mux
+v sadd
+v mor
+v mxor
+
+v preld
+v prego
+v syncd
+v prest
+v syncid
+
+v inch
+v incmh
+v incml
+v incl
+
+v andh
+v andmh
+v andml
+v andl
+
+go
+
+cswap
+geta
+
+====
+type of form order
+
+$x,$y,$z|z
+v ldsf
+v ldht
+v ldvts
+v stsf
+v stht
+v stco
+
+$x,$y,$z
+ldunc
+stunc
+
+===
+lexical order
+
+ldsf
+ldht
+ldunc
+ldvts
+
+stsf
+stht
+stco
+stunc
+
+=========
+*** instr testing
+**** MMIX: codegen load global address:
+ADDU2
+ADDU4
+ADDU8
+ADDU16
+CMP
+CMPU
+OR
+ORN
+NOR
+XOR
+AND
+ANDN
+NAND
+NXOR
+
+BN
+BZ
+BP
+BOD
+BNN
+BNZ
+BNP
+BEV
+
+** TODO write MMIX guy about `prest $x,$y,$z -> bprest $x,$y,$z`
+** TODO tests for latest patches
+** TODO test clang language level api support
+which at the same time will be a good check on what our api currenly looks like :)
+** TODO asm input breaks on jmps with random operands: jmp $1,foo
+** TODO comment on rJ not being implemented not correct as it's being implemented, even though not sure if comment is correct (normally rJ not accessible. rJ is never directly accessible)
+** TODO support all input sizes
+atm we should support 64-bit and over types properly. I'm not sure how well LLVM automatically supports lower types. I think there's at least still easy work to be done
+** TODO do cleanup pass
+*** indenting fn prototypes correctly
+(because other arches -> MMIX name makes indentation of following lines faulty)
+*** other whitespace, indenting
+*** licensing
+*** etc..
+** TODO ABI document
+** TODO don't depend on gcc objdump for conversion of elf to mmo format
+** TODO MMIX: codegen load/store support: addu, sub, subu, load and store instrns
+** TODO codegen for lots of instrs
+** TODO CI for upstream merges
+** TODO build c stdlib on top of lib
+** TODO run dhrystone as proof of backend
+** TODO remove limits on branching
+as we don't mitigate branches beyond what fits in instrs
+** TODO float 2.5 operand asm syntax now only supports 3 operands
+** TODO float codegen support
+** TODO geta is using branch_imm operator. 
+branch_imm should be made a bit more generic. or at least change backend code to something more generic.
+** TODO assembly parser support for LDI, LDA
+** TODO addu2/4/8/16 should be 2/4/8/16addu
+needs bit more work in the assembler
+** TODO branch instructions can easily load constants, like the wydes do
+   it does require a bit of changing in error codes, etc..
+** TODO load constants from .equ
+you could already load constants, see the below example, but this will overload
+the functionality of for example the wyde instructions. Now they can't
+properly differentiate between immediate values and loading addresses.
+Both are seen as constant values. The hack that accidentally worked was
+making all identifiers relocatables, but that's not pretty.
+
+What one should do is make another mc type to capture this behaviour,
+and propagate this all through the assembler and etc.
+
+# load constant from memory
+
+.equ const, 0xfeebdaeddeadbeef
+
+# CHECK-INST: seth $1,const
+# CHECK: encoding: [0xe0'A',0x01'A',0x00,0x00]
+# CHECK: fixup A - offset: 0, value: const, kind: fixup_mmix_h
+# CHECK-DISASS: e0 01 fe eb     seth $1,0xfeeb
+  seth $1,const
+
+# CHECK-INST: orh $1,const
+# CHECK: encoding: [0xe8'A',0x01'A',0x00,0x00]
+# CHECK: fixup A - offset: 0, value: const, kind: fixup_mmix_h
+# CHECK-DISASS: e8 01 fe eb     orh $1,0xfeeb
+  orh $1,const
+
+# CHECK-INST: ormh $1,const
+# CHECK: encoding: [0xe9'A',0x01'A',0x00,0x00]
+# CHECK: fixup A - offset: 0, value: const, kind: fixup_mmix_mh
+# CHECK-DISASS: e9 01 da ed     ormh $1,0xdaed
+  ormh $1,const
+
+# CHECK-INST: orml $1,const
+# CHECK: encoding: [0xea'A',0x01'A',0x00,0x00]
+# CHECK: fixup A - offset: 0, value: const, kind: fixup_mmix_ml
+# CHECK-DISASS: ea 01 de ad     orml $1,0xdead
+  orml $1,const
+
+# CHECK-INST: orl $1,const
+# CHECK: encoding: [0xeb'A',0x01'A',0x00,0x00]
+# CHECK: fixup A - offset: 0, value: const, kind: fixup_mmix_l
+# CHECK-DISASS: eb 01 be ef     orl $1,0xbeef
+  orl $1,const
+
+** TODO let branch instructions accept immediates
+at the moment they only accept expressions ready for relocating, as we
+need to change the opcode depending on if we branch either fowards or backwards.
+we basically need to duplicate the behaviour in adjustFixupValue in MMIXAsmBackend.cpp,
+either in the parser, where we already know the value of the constant, or somewhere around
+the code emitter.
+** TODO merge all patches and make undo patch
+** TODO write down/find GCC calling conv
+** done
+*** DONE MMIX: relocations: relocation offsets +-
+*** DONE MMIX: codegen load constant support: SETMH, SETML, SETL
+*** DONE scripts for patches
+**** get all MMIX patches and store them remotely
+**** apply patches and run tests, all automatically, see if nothing has broken
+*** DONE setup virt MMIX env.
+*** DONE use obj files in executable for running on emulator
+* commands
+** lit:
+~/code/llvm/build/bin/llvm-lit -v ~/code/llvm/src/llvm/test/MC/MMIX ~/code/llvm/src/llvm/test/CodeGen/MMIX
+
+** mmix gnu:
+mmix-as foo.s -o mmix.o
+mmix-objdump -d fix.o
+
+** objdump:
+llvm-objdump -d fix.o
+
+** llvm-mc:
+./bin/llvm-mc -triple=mmix -filetype=obj fix.s -o fix.o
+./bin/llvm-mc -triple=mmix -as-lex foo.s
+./bin/llvm-mc -triple=mmix -show-encoding foo.s
+
+** llc:
+bin/llc -march=mmix ../src/llvm/test/CodeGen/MMIX/alu.ll -view-isel-dags
+~/code/llvm/src/llvm/utils/update_llc_test_checks.py -v --llc-binary ~/code/llvm/build/bin/llc ~/code/llvm/src/llvm/test/CodeGen/MMIX/immediates.ll
+
+** llc view dag graphs
+One great way to visualize what is going on here is to take advantage of a few LLC command line options. The following options pop up a window displaying the SelectionDAG at specific times (if you only get errors printed to the console while using this, you probably need to configure your system to add support for it).
+
+  --view-bfi-func-name=<string>                                   - The option to specify the name of the function whose CFG will be displayed.
+  --view-block-freq-propagation-dags=<value>                      - Pop up a window to show a dag displaying how block frequencies propagation through the CFG.
+  --view-block-layout-with-bfi=<value>                            - Pop up a window to show a dag displaying MBP layout and associated block frequencies of the CFG.
+  --view-dag-combine-lt-dags                                      - Pop up a window to show dags before the post legalize types dag combine pass
+  --view-dag-combine1-dags                                        - Pop up a window to show dags before the first dag combine pass
+  --view-dag-combine2-dags                                        - Pop up a window to show dags before the second dag combine pass
+  --view-edge-bundles                                             - Pop up a window to show edge bundle graphs
+  --view-isel-dags                                                - Pop up a window to show isel dags as they are selected
+  --view-legalize-dags                                            - Pop up a window to show dags before legalize
+  --view-legalize-types-dags                                      - Pop up a window to show dags before legalize types
+  --view-machine-block-freq-propagation-dags=<value>              - Pop up a window to show a dag displaying how machine block frequencies propagate through the CFG.
+  --view-misched-cutoff=<uint>                                    - Hide nodes with more predecessor/successor than cutoff
+  --view-misched-dags                                             - Pop up a window to show MISched dags after they are processed
+  --view-sched-dags                                               - Pop up a window to show sched dags as they are processed
+  --view-slp-tree                                                 - Display the SLP trees with Graphviz
+  --view-sunit-dags                                               - Pop up a window to show SUnit dags after they are processed
+
+subset:
+
+    -view-dag-combine1-dags displays the DAG after being built, before the first optimization pass.
+    -view-legalize-dags displays the DAG before Legalization.
+    -view-dag-combine2-dags displays the DAG before the second optimization pass.
+    -view-isel-dags displays the DAG before the Select phase.
+    -view-sched-dags displays the DAG before Scheduling.
+
+The -view-sunit-dags displays the Scheduler’s dependency graph. This graph is based on the final SelectionDAG, with nodes that must be scheduled together bundled into a single scheduling-unit node, and with immediate operands and other nodes that aren’t relevant for scheduling omitted.
+
+The option -filter-view-dags allows to select the name of the basic block that you are interested to visualize and filters all the previous view-*-dags options.
+
+** compiling mmix progs
+clang test.c --target=mmix -c
+clang crt0.s --target=mmix -c
+ld.lld -Ttext=80000 crt0.o test.o -o test-lld.elf
+mmix-objcopy -O mmo test-lld.elf test-lld.mmo
+mmix -i test-lld.mmo
+* wonderings
+** the Object/MMIX/elf-flags.yaml test
+*** doesn't fill in the text representation of the EF_MMIX_ABI_GNU flag like RISCV does. Perhaps this is filled in later, once we have a proper backend? Doesn't seem very important, so I'll leave it.
+*** isn't picked up by the lit tests for now, just like the riscv one doesn't. Perhaps check later.
+** lib/Target/MMIX/MMIXTargetMachine: kinda winged the MMIX layout in computeDataLayout.
+*** Perhaps it's time for an architecture document.
+*** Check GCC implementation for their settings
+** lib/Target/MMIX/MMIXTargetMachine, MMIXTargetMachine::MMIXTargetMachine
+missing Subtarget initializer compared with Lanai and RISCV. Guessing we don't need it yet.
+** lib/Target/MMIX/MCTargetDesc/MMIXAsmBackend.cpp - MMIXELFObjectWriter.cpp
+We're passing on OSABI from target triple to MCELFObjectTargetWriter.
+We obv know we don't have an OSABI and have our own abi that we might want to swap out,
+but I'm guessing that this might be slightly unrelated. Investigate.
+
+** to understand for code emitting
+*** what is our calling convention :)
+**()** MMIX.td -> calling convention setup
+*** MMIXISelDAGToDAG: how does this work?
+*** MMIXISelLowering.cpp: function alignments?
+**** setMinFunctionAlignment(3); setPrefFunctionAlignment(3);
+*** MMIXISelLowering.cpp: stack point register?
+**** I believe should be 254 as per CConv of GCC:
+**** setStackPointerRegisterToSaveRestore(MMIX::r254);
+** all these include headers in cpp files really necessary
+*** ex: MMIXInstrInfo.cpp (prolly bcause of the included .inc file)
+** MMIXRegisterInfo.cpp: MMIXRegisterInfo constructor first arg, 0 ok?
+** uimm24 type in tablegen has OtherVT as parent class, instead of i24, as that doesn't exist.
+why doesn't this exist and what does OtherVT mean? And do we care?
+
+** MMIXInstrInfo.td: pattern classes 2nd arg doubles for imm and reg last operand.
+For riscv these are explicitly separated.
+class PatGprGpr<SDPatternOperator OpNode, MMIX3op Inst>
+    : Pat<(OpNode GPR:$y, GPR:$z), (Inst GPR:$y, GPR:$z)>;
+class PatGprUimm8<SDPatternOperator OpNode, MMIX3op Inst>
+    : Pat<(OpNode GPR:$y, uimm8:$z), (Inst GPR:$y, uimm8:$z)>;
+** MMIXRegisterInfo: eliminateFrameIndex: Offset now can't be between -262144 and 262140,
+so guessing branch limit. But I don't actually know what instr this limit is for..
+actually thinking its for sto/ldo
+*** how does eliminateframeindex and frame lowering work codewise anyways
+** MMIXInstrInfo: storeRegToStackSlot, loadRegFromStackSlot:
+how to add temp regs? and What does regstate Define/Kill/etc actually mean?
+at the moment, hardwired to reg 252, which doesn't seem like SUCH a good idea.
+** in MMIXInstrFormats, what is meaning of SDT_...
+** how does the call chain thing work exactly? write sdnode graphs.
+** when do you need to mark regs as reserved? (MMIXRegisterInfo.cpp)
+* useful info
+** mmixal trap enums
+stdin=0, stdout=1, stderr=2
+
+typedef enum
+{ Halt=0, Fopen=1, Fclose=2, Fread=3, Fgets=4,
+  Fgetws=5, Fwrite=6, Fput=7, Fputws=8, Fseek=9, Ftell=10}
+syscall;
+
+* not needing this yet
+*** constants
+def H_IMM : SDNodeXForm<imm, [{
+	  return CurDAG->getTargetConstant(((N->getZExtValue()) >> 48) & 0xfffff,
+	                                   SDLoc(N), N->getValueType(0));
+	}]>;
+
+def MH_IMM : SDNodeXForm<imm, [{
+	  return CurDAG->getTargetConstant(((N->getZExtValue()) >> 32) & 0xfffff,
+	                                   SDLoc(N), N->getValueType(0));
+	}]>;
+
+def ML_IMM : SDNodeXForm<imm, [{
+	  return CurDAG->getTargetConstant(((N->getZExtValue()) >> 16) & 0xfffff,
+	                                   SDLoc(N), N->getValueType(0));
+	}]>;
+
+def L_IMM : SDNodeXForm<imm, [{
+	  return CurDAG->getTargetConstant((N->getZExtValue()) & 0xfffff,
+	                                   SDLoc(N), N->getValueType(0));
+	}]>;
+
+*** load/store special registers
+// special register loads
+def : Pat<(load SR:$x), (LDO_I (GET SR:$x), 0)>;
+def : Pat<(load (add SR:$x, uimm8:$z)), (LDO_I (GET SR:$x), uimm8:$z)>;
+
+// special register stores
+def : Pat<(store SR:$x, GPR:$y), (STO_I (GET SR:$x), GPR:$y, 0)>;
+
+*** MMIXRegisterInfo.cpp
+  -> eliminateFrameIndex: we account for all instrs with frame indices, so we're ok here
+static bool isConvertableRegOp(unsigned Opcode) {
+  switch (Opcode) {
+  // loads
+  case MMIX::LDB_I:
+  case MMIX::LDBU_I:
+  case MMIX::LDW_I:
+  case MMIX::LDWU_I:
+  case MMIX::LDT_I:
+  case MMIX::LDTU_I:
+  case MMIX::LDO_I:
+  // stores
+  case MMIX::STB_I:
+  case MMIX::STW_I:
+  case MMIX::STT_I:
+  case MMIX::STO_I:
+  // misc
+  case MMIX::ADD_I:
+    return true;
+  default:
+    return false;
+  }
+}
