@@ -1,0 +1,26 @@
+This repo harbors scripts, documentation, code and artifacts that aid the MMIX
+backend for LLVM in some way:
+
+- scripts:
+-- to compile MMIX executables with a VERY basic init routine to at least get
+   up and running
+-- to run executables on an MMIX VM
+-- to extract all MMIX patches from the downstream repo, and apply them
+   to a clean LLVM, and run MMIX tests against all of them to see if they are
+   still sane
+
+- documentation:
+-- rudimentary ABI document (todo)
+-- notes.org
+--- todo
+--- overview description on general state of things (todo)
+--- useful commands used to run and compile object files and tests
+--- some general notes
+
+- MMIX code:
+-- Library: at the moment we only have the basics of the basics of a startup
+   routine that sets up global registers and the stack. As bonus there's
+   also an assembly routine that can write to stdout.
+
+- artifacts:
+-- some milestone binaries, kept in this repo because I'm a hoarder
