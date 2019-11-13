@@ -167,10 +167,14 @@ alu3multi_list = [
 xyz_multi_list = [
     ["ldsf",  0x90],
     ["ldht",  0x92],
+    ["ldunc", 0x96],
     ["ldvts", 0x98],
     ["stsf",  0xb0],
     ["stht",  0xb2],
     ["stco",  0xb4],
+    ["stunc", 0xb6],
+    ["go", 0x9e],
+    ["cswap", 0x94]
 ]
 
 def print_xyz_multi(op, code):

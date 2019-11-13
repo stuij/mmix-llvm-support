@@ -1,7 +1,103 @@
 * todo
 ** TODO rebase and fix on newest branch
-** TODO assembly support for instrs
-*** overgeslagen:
+
+** TODO write MMIX guy about http://mmix.cs.hm.edu/doc/instructions.html
+*** prest $x,$y,$z -> prest $x,$y,$z|z
+*** cswap $x,$y,$z -> cswap $x,$y,$z|z
+*** ldunc stunc $x,$y,$z -> $x,$y,$z|z
+** TODO tests for latest patches
+** TODO test clang language level api support
+which at the same time will be a good check on what our api currenly looks like :)
+** TODO asm input breaks on jmps with random operands: jmp $1,foo
+** TODO comment on rJ not being implemented not correct as it's being implemented, even though not sure if comment is correct (normally rJ not accessible. rJ is never directly accessible)
+** TODO support all input sizes
+atm we should support 64-bit and over types properly. I'm not sure how well LLVM automatically supports lower types. I think there's at least still easy work to be done
+** TODO do cleanup pass
+*** indenting fn prototypes correctly
+(because other arches -> MMIX name makes indentation of following lines faulty)
+*** other whitespace, indenting
+*** licensing
+*** etc..
+** TODO ABI document
+** TODO don't depend on gcc objdump for conversion of elf to mmo format
+** TODO MMIX: codegen load/store support: addu, sub, subu, load and store instrns
+** TODO codegen for lots of instrs
+** TODO CI for upstream merges
+** TODO build c stdlib on top of lib
+** TODO run dhrystone as proof of backend
+** TODO remove limits on branching
+as we don't mitigate branches beyond what fits in instrs
+** TODO float 2.5 operand asm syntax now only supports 3 operands
+** TODO float codegen support
+** TODO geta is using branch_imm operator.
+branch_imm should be made a bit more generic. or at least change backend code to something more generic.
+** TODO assembly parser support for LDI, LDA
+** TODO addu2/4/8/16 should be 2/4/8/16addu
+needs bit more work in the assembler
+** TODO branch instructions can easily load constants, like the wydes do
+   it does require a bit of changing in error codes, etc..
+** TODO load constants from .equ
+you could already load constants, see the below example, but this will overload
+the functionality of for example the wyde instructions. Now they can't
+properly differentiate between immediate values and loading addresses.
+Both are seen as constant values. The hack that accidentally worked was
+making all identifiers relocatables, but that's not pretty.
+
+What one should do is make another mc type to capture this behaviour,
+and propagate this all through the assembler and etc.
+
+# load constant from memory
+
+.equ const, 0xfeebdaeddeadbeef
+
+# CHECK-INST: seth $1,const
+# CHECK: encoding: [0xe0'A',0x01'A',0x00,0x00]
+# CHECK: fixup A - offset: 0, value: const, kind: fixup_mmix_h
+# CHECK-DISASS: e0 01 fe eb     seth $1,0xfeeb
+  seth $1,const
+
+# CHECK-INST: orh $1,const
+# CHECK: encoding: [0xe8'A',0x01'A',0x00,0x00]
+# CHECK: fixup A - offset: 0, value: const, kind: fixup_mmix_h
+# CHECK-DISASS: e8 01 fe eb     orh $1,0xfeeb
+  orh $1,const
+
+# CHECK-INST: ormh $1,const
+# CHECK: encoding: [0xe9'A',0x01'A',0x00,0x00]
+# CHECK: fixup A - offset: 0, value: const, kind: fixup_mmix_mh
+# CHECK-DISASS: e9 01 da ed     ormh $1,0xdaed
+  ormh $1,const
+
+# CHECK-INST: orml $1,const
+# CHECK: encoding: [0xea'A',0x01'A',0x00,0x00]
+# CHECK: fixup A - offset: 0, value: const, kind: fixup_mmix_ml
+# CHECK-DISASS: ea 01 de ad     orml $1,0xdead
+  orml $1,const
+
+# CHECK-INST: orl $1,const
+# CHECK: encoding: [0xeb'A',0x01'A',0x00,0x00]
+# CHECK: fixup A - offset: 0, value: const, kind: fixup_mmix_l
+# CHECK-DISASS: eb 01 be ef     orl $1,0xbeef
+  orl $1,const
+
+** TODO let branch instructions accept immediates
+at the moment they only accept expressions ready for relocating, as we
+need to change the opcode depending on if we branch either fowards or backwards.
+we basically need to duplicate the behaviour in adjustFixupValue in MMIXAsmBackend.cpp,
+either in the parser, where we already know the value of the constant, or somewhere around
+the code emitter.
+** TODO merge all patches and make undo patch
+** TODO write down/find GCC calling conv
+** done
+*** DONE MMIX: relocations: relocation offsets +-
+*** DONE MMIX: codegen load constant support: SETMH, SETML, SETL
+*** DONE scripts for patches
+**** get all MMIX patches and store them remotely
+**** apply patches and run tests, all automatically, see if nothing has broken
+*** DONE setup virt MMIX env.
+*** DONE use obj files in executable for running on emulator
+*** DONE assembly support for instrs
+**** overgeslagen:
 x,y,z
 v trap
 v swym
@@ -70,41 +166,23 @@ v andmh
 v andml
 v andl
 
-go
-
-cswap
-geta
-
-====
-type of form order
+v go
+v cswap
 
 $x,$y,$z|z
 v ldsf
 v ldht
+v ldunc
 v ldvts
 v stsf
 v stht
 v stco
+v stunc
 
-$x,$y,$z
-ldunc
-stunc
-
-===
-lexical order
-
-ldsf
-ldht
-ldunc
-ldvts
-
-stsf
-stht
-stco
-stunc
+geta
 
 =========
-*** instr testing
+**** instr testing
 **** MMIX: codegen load global address:
 ADDU2
 ADDU4
@@ -129,99 +207,6 @@ BNN
 BNZ
 BNP
 BEV
-
-** TODO write MMIX guy about `prest $x,$y,$z -> bprest $x,$y,$z`
-** TODO tests for latest patches
-** TODO test clang language level api support
-which at the same time will be a good check on what our api currenly looks like :)
-** TODO asm input breaks on jmps with random operands: jmp $1,foo
-** TODO comment on rJ not being implemented not correct as it's being implemented, even though not sure if comment is correct (normally rJ not accessible. rJ is never directly accessible)
-** TODO support all input sizes
-atm we should support 64-bit and over types properly. I'm not sure how well LLVM automatically supports lower types. I think there's at least still easy work to be done
-** TODO do cleanup pass
-*** indenting fn prototypes correctly
-(because other arches -> MMIX name makes indentation of following lines faulty)
-*** other whitespace, indenting
-*** licensing
-*** etc..
-** TODO ABI document
-** TODO don't depend on gcc objdump for conversion of elf to mmo format
-** TODO MMIX: codegen load/store support: addu, sub, subu, load and store instrns
-** TODO codegen for lots of instrs
-** TODO CI for upstream merges
-** TODO build c stdlib on top of lib
-** TODO run dhrystone as proof of backend
-** TODO remove limits on branching
-as we don't mitigate branches beyond what fits in instrs
-** TODO float 2.5 operand asm syntax now only supports 3 operands
-** TODO float codegen support
-** TODO geta is using branch_imm operator. 
-branch_imm should be made a bit more generic. or at least change backend code to something more generic.
-** TODO assembly parser support for LDI, LDA
-** TODO addu2/4/8/16 should be 2/4/8/16addu
-needs bit more work in the assembler
-** TODO branch instructions can easily load constants, like the wydes do
-   it does require a bit of changing in error codes, etc..
-** TODO load constants from .equ
-you could already load constants, see the below example, but this will overload
-the functionality of for example the wyde instructions. Now they can't
-properly differentiate between immediate values and loading addresses.
-Both are seen as constant values. The hack that accidentally worked was
-making all identifiers relocatables, but that's not pretty.
-
-What one should do is make another mc type to capture this behaviour,
-and propagate this all through the assembler and etc.
-
-# load constant from memory
-
-.equ const, 0xfeebdaeddeadbeef
-
-# CHECK-INST: seth $1,const
-# CHECK: encoding: [0xe0'A',0x01'A',0x00,0x00]
-# CHECK: fixup A - offset: 0, value: const, kind: fixup_mmix_h
-# CHECK-DISASS: e0 01 fe eb     seth $1,0xfeeb
-  seth $1,const
-
-# CHECK-INST: orh $1,const
-# CHECK: encoding: [0xe8'A',0x01'A',0x00,0x00]
-# CHECK: fixup A - offset: 0, value: const, kind: fixup_mmix_h
-# CHECK-DISASS: e8 01 fe eb     orh $1,0xfeeb
-  orh $1,const
-
-# CHECK-INST: ormh $1,const
-# CHECK: encoding: [0xe9'A',0x01'A',0x00,0x00]
-# CHECK: fixup A - offset: 0, value: const, kind: fixup_mmix_mh
-# CHECK-DISASS: e9 01 da ed     ormh $1,0xdaed
-  ormh $1,const
-
-# CHECK-INST: orml $1,const
-# CHECK: encoding: [0xea'A',0x01'A',0x00,0x00]
-# CHECK: fixup A - offset: 0, value: const, kind: fixup_mmix_ml
-# CHECK-DISASS: ea 01 de ad     orml $1,0xdead
-  orml $1,const
-
-# CHECK-INST: orl $1,const
-# CHECK: encoding: [0xeb'A',0x01'A',0x00,0x00]
-# CHECK: fixup A - offset: 0, value: const, kind: fixup_mmix_l
-# CHECK-DISASS: eb 01 be ef     orl $1,0xbeef
-  orl $1,const
-
-** TODO let branch instructions accept immediates
-at the moment they only accept expressions ready for relocating, as we
-need to change the opcode depending on if we branch either fowards or backwards.
-we basically need to duplicate the behaviour in adjustFixupValue in MMIXAsmBackend.cpp,
-either in the parser, where we already know the value of the constant, or somewhere around
-the code emitter.
-** TODO merge all patches and make undo patch
-** TODO write down/find GCC calling conv
-** done
-*** DONE MMIX: relocations: relocation offsets +-
-*** DONE MMIX: codegen load constant support: SETMH, SETML, SETL
-*** DONE scripts for patches
-**** get all MMIX patches and store them remotely
-**** apply patches and run tests, all automatically, see if nothing has broken
-*** DONE setup virt MMIX env.
-*** DONE use obj files in executable for running on emulator
 * commands
 ** lit:
 ~/code/llvm/build/bin/llvm-lit -v ~/code/llvm/src/llvm/test/MC/MMIX ~/code/llvm/src/llvm/test/CodeGen/MMIX
