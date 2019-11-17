@@ -36,7 +36,7 @@ else
     echo "*******************"
     echo configuring repo and patches
 
-    git format-patch origin/master..HEAD -o $PATCHES
+    git format-patch origin/master..HEAD -k -o $PATCHES
     # git checkout -b $BRANCH
     git reset --hard origin/master
 fi
@@ -44,16 +44,16 @@ fi
 i=0
 for patch in $PATCHES/*; do
     let ++i
-    if (( i <= $CURRENT_PATCH )); then
+    if (( i < $CURRENT_PATCH )); then
         continue
     fi
-
-    echo ""
-    echo "*******************"
-    echo "applying: $patch"
-    cd $REPO
-    git am --reject --whitespace=fix $patch
-
+    if (( i > $CURRENT_PATCH )); then
+        echo ""
+        echo "*******************"
+        echo "applying: $patch"
+        cd $REPO
+        git am --reject --whitespace=fix -k $patch
+    fi
 
     echo ""
     echo "*******************"
@@ -67,6 +67,9 @@ for patch in $PATCHES/*; do
     fi
     ninja
 
+    echo ""
+    echo "*******************"
+    echo "testing:"
     if [ -d ${OBJ_TESTS} ]; then
         $BUILD/bin/llvm-lit -v $OBJ_TESTS
     fi
