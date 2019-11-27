@@ -1,4 +1,5 @@
 #!/bin/env bash
 ROOT=~/code/llvm/llvm-project
-TEST_ROOT=$ROOT/llvm/test
-$ROOT/build/bin/llvm-lit -v $TEST_ROOT/Object/MMIX $TEST_ROOT/CodeGen/MMIX $TEST_ROOT/CodeGen/MMIX $TEST_ROOT/MC/MMIX
+LLVM_TEST_ROOT=$ROOT/llvm/test
+LLD_TEST_ROOT=$ROOT/lld/test
+$ROOT/build/bin/llvm-lit -v $LLVM_TEST_ROOT/Object/MMIX $LLVM_TEST_ROOT/CodeGen/MMIX $LLVM_TEST_ROOT/CodeGen/MMIX $LLVM_TEST_ROOT/MC/MMIX $LLD_TEST_ROOT/ELF/mmix-*
