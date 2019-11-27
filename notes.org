@@ -1,13 +1,17 @@
 * todo
 ** TODO rebase and fix on newest branch
-
+** TODO follow new conventions
+*** one pull request on github in email somewhere
+*** one maybe from llvm weekly
 ** TODO write MMIX guy about http://mmix.cs.hm.edu/doc/instructions.html
 *** prest $x,$y,$z -> prest $x,$y,$z|z
 *** cswap $x,$y,$z -> cswap $x,$y,$z|z
 *** ldunc stunc $x,$y,$z -> $x,$y,$z|z
 ** TODO tests for latest patches
+** TODO MMIXInstrInfo::copyPhysReg (patch 13 load/store support) doesn't override anymore after LLVM update
 ** TODO test clang language level api support
 which at the same time will be a good check on what our api currenly looks like :)
+** TODO test lld
 ** TODO asm input breaks on jmps with random operands: jmp $1,foo
 ** TODO comment on rJ not being implemented not correct as it's being implemented, even though not sure if comment is correct (normally rJ not accessible. rJ is never directly accessible)
 ** TODO support all input sizes
@@ -87,6 +91,8 @@ we basically need to duplicate the behaviour in adjustFixupValue in MMIXAsmBacke
 either in the parser, where we already know the value of the constant, or somewhere around
 the code emitter.
 ** TODO merge all patches and make undo patch
+** TODO support GN
+https://reviews.llvm.org/D56416
 ** TODO write down/find GCC calling conv
 ** done
 *** DONE MMIX: relocations: relocation offsets +-
@@ -260,11 +266,17 @@ The -view-sunit-dags displays the Scheduler’s dependency graph. This graph is 
 The option -filter-view-dags allows to select the name of the basic block that you are interested to visualize and filters all the previous view-*-dags options.
 
 ** compiling mmix progs
-clang test.c --target=mmix -c
-clang crt0.s --target=mmix -c
-ld.lld -Ttext=80000 crt0.o test.o -o test-lld.elf
-mmix-objcopy -O mmo test-lld.elf test-lld.mmo
-mmix -i test-lld.mmo
+- make sure that:
+-- the `clang` in your PATH points to the mmix-enabled clang you compiled
+-- these are in your PATH. They are linked from the the [[http://mmix.cs.hm.edu/bin/][mmix linux download page]]:
+--- `mmix`, the [[http://mmix.cs.hm.edu/bin/mmix][mmix virtual machine binary]]
+--- `mmix-objcopy`, to convert the Clang ELF file to an MMO file. Find it in the opt/bin directory of the [[http://mmix.cs.hm.edu/bin/optmmix-2011-5-6.tgz][MMIX GCC toolchain]]
+- run make in the root of this repo
+- this should be roughly equivalent to:
+clang src/lib/crt0.s --target=mmix -c -o build/lib/crt0.o
+clang --target=mmix --sysroot=build -o build/bin/test.elf src/tests/call-fn.c
+mmix-objcopy -O mmo build/bin/test.elf build/bin/test.mmo
+mmix -i build/bin/test.mmo
 * wonderings
 ** the Object/MMIX/elf-flags.yaml test
 *** doesn't fill in the text representation of the EF_MMIX_ABI_GNU flag like RISCV does. Perhaps this is filled in later, once we have a proper backend? Doesn't seem very important, so I'll leave it.
