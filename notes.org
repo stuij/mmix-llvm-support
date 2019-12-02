@@ -1,17 +1,12 @@
 * todo
-** TODO rebase and fix on newest branch
-** TODO follow new conventions
-*** one pull request on github in email somewhere
-*** one maybe from llvm weekly
+** TODO rebase and fix on newest branch (eternal)
 ** TODO write MMIX guy about http://mmix.cs.hm.edu/doc/instructions.html
 *** prest $x,$y,$z -> prest $x,$y,$z|z
 *** cswap $x,$y,$z -> cswap $x,$y,$z|z
 *** ldunc stunc $x,$y,$z -> $x,$y,$z|z
-** TODO tests for latest patches
-** TODO MMIXInstrInfo::copyPhysReg (patch 13 load/store support) doesn't override anymore after LLVM update
+** TODO tests for latest patches (only clang left, waiting till ABI story makes sense in my head)
 ** TODO test clang language level api support
 which at the same time will be a good check on what our api currenly looks like :)
-** TODO test lld
 ** TODO asm input breaks on jmps with random operands: jmp $1,foo
 ** TODO comment on rJ not being implemented not correct as it's being implemented, even though not sure if comment is correct (normally rJ not accessible. rJ is never directly accessible)
 ** TODO support all input sizes
@@ -213,6 +208,11 @@ BNN
 BNZ
 BNP
 BEV
+*** DONE follow new conventions
+**** one pull request on github in email somewhere
+**** one maybe from llvm weekly
+*** DONE MMIXInstrInfo::copyPhysReg (patch 13 load/store support) doesn't override anymore after LLVM update
+*** DONE test lld
 * commands
 ** lit:
 ~/code/llvm/build/bin/llvm-lit -v ~/code/llvm/src/llvm/test/MC/MMIX ~/code/llvm/src/llvm/test/CodeGen/MMIX
@@ -293,7 +293,7 @@ but I'm guessing that this might be slightly unrelated. Investigate.
 
 ** to understand for code emitting
 *** what is our calling convention :)
-**()** MMIX.td -> calling convention setup
+**** MMIX.td -> calling convention setup
 *** MMIXISelDAGToDAG: how does this work?
 *** MMIXISelLowering.cpp: function alignments?
 **** setMinFunctionAlignment(3); setPrefFunctionAlignment(3);
