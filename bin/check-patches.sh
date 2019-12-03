@@ -1,12 +1,62 @@
 #!/usr/bin/env bash
 set -e
 
-TMP=~/code/tmp/mmix
+print_help () {
+    echo "usage: `basename $0` [option..]"
+    echo
+    echo "   -s <src>    src repo directory"
+    echo "   -t <tmp>    tmp directory holding patches, build dir, cloned repo"
+    echo "   -p <nr>     patch number to start off from when resuming
+                         (TODO: we should automate this)"
+    echo "   -l <nr>     parallel link jobs when building LLVM"
+    echo "   -c          script called from within CI (don't re-clone repo)"
+    echo "   -h          this help text"
+}
+
 SRC=~/code/llvm/llvm-project
+TMP=~/code/tmp/mmix
+
+CURRENT_PATCH=0
+CI=0
+PARALLEL_LINK_JOBS=4
+
+while getopts ":s:t:p:l:ch" opt; do
+    case ${opt} in
+        p ) CURRENT_PATCH=$OPTARG
+            ;;
+        c ) CI=1
+            ;;
+        s ) SRC="$(cd "$OPTARG" && pwd -P)"
+            ;;
+        l ) PARALLEL_LINK_JOBS=$OPTARG
+            ;;
+        t ) TMP="$(mkdir -p "$OPTARG" && cd "$OPTARG" && pwd -P)"
+            ;;
+        h ) print_help
+            exit 0
+            ;;
+        : ) echo "Invalid option: $OPTARG requires an argument" 1>&2
+            exit 1
+            ;;
+        \? ) print_help
+             exit 1
+             ;;
+  esac
+done
+shift $((OPTIND -1))
 
 PATCHES=$TMP/patches
 BUILD=$TMP/build
-REPO=$TMP/llvm-project
+TARGET_BIN=$BUILD/bin
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+export PATH=$SCRIPT_DIR:$PATH
+
+if [ $CI -eq 0 ]; then
+    REPO=$TMP/llvm-project
+else
+    REPO=$SRC
+fi
 
 MMIX_SUPPORT_SUBMODULE=$REPO/mmix-llvm-support
 
@@ -15,11 +65,7 @@ MC_TESTS=$REPO/llvm/test/MC/MMIX
 LLC_TESTS=$REPO/lld/test/ELF/mmix-*
 CODEGEN_TESTS=$REPO/llvm/test/CodeGen/MMIX
 
-CURRENT_PATCH=0
-
-if [ $# -eq 1 ]; then
-    CURRENT_PATCH=$1
-else
+if [ $CURRENT_PATCH -eq 0 ]; then
     echo ""
     echo "*******************"
     echo preparing test environment
@@ -28,18 +74,24 @@ else
     mkdir -p $PATCHES
     mkdir -p $BUILD
 
-    cd $TMP
-    git clone $SRC
+    if [ $CI -eq 0 ]; then
+        cd $TMP
+        git clone $SRC
+    fi
+
     cd $REPO
-    git remote set-url origin https://github.com/llvm/llvm-project.git
-    git fetch
+
+    if [ $CI -eq 0 ]; then
+        git remote add upstream https://github.com/llvm/llvm-project.git
+        git fetch upstream
+    fi
 
     echo ""
     echo "*******************"
     echo configuring repo and patches
 
-    git format-patch origin/master..HEAD -k -o $PATCHES
-    git reset --hard origin/master
+    git format-patch upstream/master..HEAD -k -o $PATCHES
+    git reset --hard upstream/master
 fi
 
 i=0
@@ -63,9 +115,9 @@ for patch in $PATCHES/*; do
     echo configuring build
     cd $BUILD
     if (( i < 3 )); then
-        mmix-build $REPO/llvm "X86" ""
+        mmix-build $REPO/llvm "X86" "" $PARALLEL_LINK_JOBS
     else
-        mmix-build $REPO/llvm "X86" "MMIX"
+        mmix-build $REPO/llvm "X86" "MMIX" $PARALLEL_LINK_JOBS
     fi
     ninja
 
@@ -93,10 +145,11 @@ for patch in $PATCHES/*; do
 
     echo
     if [ -d ${MMIX_SUPPORT_SUBMODULE} ]; then
+        export PATH=$TARGET_BIN:$PATH
         cd $MMIX_SUPPORT_SUBMODULE
         make
     fi
 done
 
-cd build
+cd $BUILD
 ninja check-all
