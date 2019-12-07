@@ -35,8 +35,9 @@ run:
 run-interactive:
 	mmix -i $(TEST_BIN)
 
+# poor man's unit test framework
 test:
-	mmix $(TEST_BIN) | tee /dev/tty | grep -q pass
+	mmix $(TEST_BIN) | tee /dev/stderr | grep -q pass
 
 clean:
 	rm -r build/*

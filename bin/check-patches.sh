@@ -145,9 +145,11 @@ for patch in $PATCHES/*; do
 
     echo
     if [ -d ${MMIX_SUPPORT_SUBMODULE} ]; then
+        echo "simulator end-to-end tests:"
         export PATH=$TARGET_BIN:$PATH
         cd $MMIX_SUPPORT_SUBMODULE
         make
+        echo
     fi
 done
 
