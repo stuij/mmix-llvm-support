@@ -2,35 +2,28 @@
 set -e
 
 print_help () {
-    echo "usage: `basename $0` [option..]"
+    echo "usage: `basename $0` [option..] <repo> <tmp>"
     echo
-    echo "   -s <src>    src repo directory"
-    echo "   -t <tmp>    tmp directory holding patches, build dir, cloned repo"
-    echo "   -p <nr>     patch number to start off from when resuming
-                         (TODO: we should automate this)"
+    echo "   -p <nr>     patch number to start off from when resuming"
+    echo "               (TODO: we should automate this)"
+    echo "   -c <commit> start of MMIX patches - 1"
     echo "   -l <nr>     parallel link jobs when building LLVM"
-    echo "   -c          script called from within CI (don't re-clone repo)"
     echo "   -h          this help text"
+    echo "   <repo>      git repo we want to test"
+    echo "   <tmp>       tmp directory holding patches, build dir"
 }
 
-SRC=~/code/llvm/llvm-project
-TMP=~/code/tmp/mmix
-
+COMMIT=upstream/master
 CURRENT_PATCH=0
-CI=0
 PARALLEL_LINK_JOBS=4
 
-while getopts ":s:t:p:l:ch" opt; do
+while getopts ":p:c:l:h" opt; do
     case ${opt} in
         p ) CURRENT_PATCH=$OPTARG
             ;;
-        c ) CI=1
-            ;;
-        s ) SRC="$(cd "$OPTARG" && pwd -P)"
+        c ) COMMIT=$OPTARG
             ;;
         l ) PARALLEL_LINK_JOBS=$OPTARG
-            ;;
-        t ) TMP="$(mkdir -p "$OPTARG" && cd "$OPTARG" && pwd -P)"
             ;;
         h ) print_help
             exit 0
@@ -45,18 +38,21 @@ while getopts ":s:t:p:l:ch" opt; do
 done
 shift $((OPTIND -1))
 
+if [ $# -ne 2 ]; then
+    echo "missing <repo> and <tmp> arguments, or argument list malformed"
+    echo
+    print_help
+fi
+
+REPO="$(cd "$1" && pwd -P)"
+TMP="$(mkdir -p "$2" && cd "$2" && pwd -P)"
+
 PATCHES=$TMP/patches
 BUILD=$TMP/build
 TARGET_BIN=$BUILD/bin
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 export PATH=$SCRIPT_DIR:$PATH
-
-if [ $CI -eq 0 ]; then
-    REPO=$TMP/llvm-project
-else
-    REPO=$SRC
-fi
 
 MMIX_SUPPORT_SUBMODULE=$REPO/mmix-llvm-support
 
@@ -74,24 +70,14 @@ if [ $CURRENT_PATCH -eq 0 ]; then
     mkdir -p $PATCHES
     mkdir -p $BUILD
 
-    if [ $CI -eq 0 ]; then
-        cd $TMP
-        git clone $SRC
-    fi
-
     cd $REPO
-
-    if [ $CI -eq 0 ]; then
-        git remote add upstream https://github.com/llvm/llvm-project.git
-        git fetch upstream
-    fi
 
     echo ""
     echo "*******************"
     echo configuring repo and patches
 
-    git format-patch upstream/master..HEAD -k -o $PATCHES
-    git reset --hard upstream/master
+    git format-patch $COMMIT..HEAD -k -o $PATCHES
+    git reset --hard $COMMIT
 fi
 
 i=0
@@ -123,7 +109,10 @@ for patch in $PATCHES/*; do
 
     echo ""
     echo "*******************"
-    echo "testing:"
+    echo "testing"
+    echo
+    echo "lit tests:"
+    echo "----------"
     if [ -d ${OBJ_TESTS} ]; then
         $BUILD/bin/llvm-lit -v $OBJ_TESTS
     fi
@@ -143,15 +132,22 @@ for patch in $PATCHES/*; do
         $BUILD/bin/llvm-lit -v $LLC_TESTS
     fi
 
-    echo
     if [ -d ${MMIX_SUPPORT_SUBMODULE} ]; then
+        echo
         echo "simulator end-to-end tests:"
+        echo "---------------------------"
         export PATH=$TARGET_BIN:$PATH
         cd $MMIX_SUPPORT_SUBMODULE
         make
-        echo
     fi
+    echo
 done
 
+echo "patches applied and tested!"
+echo
+
 cd $BUILD
+echo "*******************"
+echo "check-all"
+echo 
 ninja check-all

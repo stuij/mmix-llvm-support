@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -e
+
+print_help () {
+    echo "usage: `basename $0` [option..] <repo> <tmp>"
+    echo
+    echo "   -p <nr>     patch number to start off from when resuming"
+    echo "               (TODO: we should automate this)"
+    echo "   -k          keep the current check repo; don't delete it"
+    echo "   -s          rebase from stuij master"
+    echo "   -u          rebase from upstream master"
+    echo "   -h          this help text"
+    echo "   <repo>      git repo we want to test"
+    echo "   <tmp>       tmp directory holding patches, build dir"
+}
+
+SRC=~/code/llvm/llvm-project
+TMP=~/code/tmp/mmix
+REPO=$TMP/llvm-project
+PATCH_TMP=$TMP/work
+
+CURRENT_PATCH=0
+KEEP=0
+STUIJ=0
+UPSTREAM=0
+
+while getopts ":p:ksuh" opt; do
+    case ${opt} in
+        p ) CURRENT_PATCH=$OPTARG
+            ;;
+        k ) KEEP=1
+            ;;
+        s ) STUIJ=1
+            ;;
+        u ) UPSTREAM=1
+            ;;
+        h ) print_help
+            exit 0
+            ;;
+        : ) echo "Invalid option: $OPTARG requires an argument" 1>&2
+            exit 1
+            ;;
+        \? ) echo script parse failure
+             exit 1
+             ;;
+    esac
+done
+shift $((OPTIND -1))
+
+if [[ $CURRENT_PATCH -eq 0 && $KEEP -eq 0 ]]; then
+    rm -rf $TMP
+    mkdir -p $TMP
+    cd $TMP
+    git clone $SRC $REPO
+
+    cd $REPO
+    git remote add upstream https://github.com/llvm/llvm-project.git
+    git fetch upstream
+    git remote add stuij git@github.com:stuij/mmix-llvm-backend.git
+    git fetch stuij
+fi
+
+cd $REPO
+if [ $STUIJ -eq 1 ]; then
+    LOCAL_BASE=$(git merge-base master upstream/master)
+    BASE_COMMIT=$(git merge-base stuij/master upstream/master)
+    git rebase --onto $BASE_COMMIT $LOCAL_BASE
+elif [ $UPSTREAM -eq 1 ]; then
+    BASE_COMMIT=$(git merge-base master upstream/master)
+    git pull --rebase upstream/master
+else
+    BASE_COMMIT=$(git merge-base master upstream/master)
+fi
+
+check-patches.sh -p $CURRENT_PATCH -c $BASE_COMMIT $REPO $PATCH_TMP
