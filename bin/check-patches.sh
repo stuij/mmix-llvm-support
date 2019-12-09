@@ -4,26 +4,25 @@ set -e
 print_help () {
     echo "usage: `basename $0` [option..] <repo> <tmp>"
     echo
-    echo "   -p <nr>     patch number to start off from when resuming"
-    echo "               (TODO: we should automate this)"
     echo "   -c <commit> start of MMIX patches - 1"
     echo "   -l <nr>     parallel link jobs when building LLVM"
+    echo "   -d          delete contents of tmp dir"
     echo "   -h          this help text"
     echo "   <repo>      git repo we want to test"
     echo "   <tmp>       tmp directory holding patches, build dir"
 }
 
 COMMIT=upstream/master
-CURRENT_PATCH=0
 PARALLEL_LINK_JOBS=4
+DELETE=0
 
-while getopts ":p:c:l:h" opt; do
+while getopts ":c:l:dh" opt; do
     case ${opt} in
-        p ) CURRENT_PATCH=$OPTARG
-            ;;
         c ) COMMIT=$OPTARG
             ;;
         l ) PARALLEL_LINK_JOBS=$OPTARG
+            ;;
+        d ) DELETE=1
             ;;
         h ) print_help
             exit 0
@@ -47,7 +46,8 @@ fi
 REPO="$(cd "$1" && pwd -P)"
 TMP="$(mkdir -p "$2" && cd "$2" && pwd -P)"
 
-PATCHES=$TMP/patches
+PATCHES_TODO=$TMP/patches/todo
+PATCHES_DONE=$TMP/patches/done
 BUILD=$TMP/build
 TARGET_BIN=$BUILD/bin
 
@@ -61,40 +61,16 @@ MC_TESTS=$REPO/llvm/test/MC/MMIX
 LLC_TESTS=$REPO/lld/test/ELF/mmix-*
 CODEGEN_TESTS=$REPO/llvm/test/CodeGen/MMIX
 
-if [ $CURRENT_PATCH -eq 0 ]; then
-    echo ""
-    echo "*******************"
-    echo preparing test environment
-
-    rm -rf $TMP
-    mkdir -p $PATCHES
-    mkdir -p $BUILD
-
-    cd $REPO
-
-    echo ""
-    echo "*******************"
-    echo configuring repo and patches
-
-    git format-patch $COMMIT..HEAD -k -o $PATCHES
-    git reset --hard $COMMIT
+CLEAN_RUN=0
+# if we explicitly want to delete the tmp dir, it doesn't exist
+# or it is empty (we applied all patches), start a new run
+if [ $DELETE -eq 1 ] ||
+       [ ! -d $PATCHES_TODO ] ||
+       [ ! "$(find "$PATCHES_TODO" -mindepth 1 -print -quit 2>/dev/null)" ]; then 
+    CLEAN_RUN=1
 fi
 
-i=0
-for patch in $PATCHES/*; do
-    let ++i
-    if (( i < $CURRENT_PATCH )); then
-        continue
-    fi
-    if (( i > $CURRENT_PATCH )); then
-        echo ""
-        echo "*******************"
-        echo "applying: $patch"
-        cd $REPO
-        git am --reject --whitespace=fix -k $patch
-        git submodule update --init
-    fi
-
+build () {
     echo ""
     echo "*******************"
     echo "building:"
@@ -106,7 +82,9 @@ for patch in $PATCHES/*; do
         mmix-build $REPO/llvm "X86" "MMIX" $PARALLEL_LINK_JOBS
     fi
     ninja
+}
 
+test_patches () {
     echo ""
     echo "*******************"
     echo "testing"
@@ -140,6 +118,44 @@ for patch in $PATCHES/*; do
         cd $MMIX_SUPPORT_SUBMODULE
         make
     fi
+}
+
+if [ $CLEAN_RUN -eq 1 ]; then
+    echo ""
+    echo "*******************"
+    echo preparing test environment
+
+    rm -rf $TMP
+    mkdir -p $PATCHES_TODO
+    mkdir -p $PATCHES_DONE
+    mkdir -p $BUILD
+
+    cd $REPO
+
+    echo ""
+    echo "*******************"
+    echo configuring repo and patches
+
+    git format-patch ^$COMMIT -k -o $PATCHES_TODO
+    git reset --hard $COMMIT
+fi
+
+if [ $CLEAN_RUN -eq 0 ]; then
+    build
+    test_patches
+fi
+
+for patch in $PATCHES_TODO/*; do
+    echo ""
+    echo "*******************"
+    echo "applying: $patch"
+    cd $REPO
+    git am --reject --whitespace=fix -k $patch
+    mv $patch $PATCHES_DONE
+    git submodule update --init
+    sleep 2
+    build
+    test_patches
     echo
 done
 
